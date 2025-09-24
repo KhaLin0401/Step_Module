@@ -19,10 +19,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "ModbusMap.h"
+#include "StepControl.h"
+#include "UartModbus.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,7 +53,7 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
-
+uint8_t current_baudrate = DEFAULT_CONFIG_BAUDRATE;
 /* Definitions for IOTask */
 osThreadId_t IOTaskHandle;
 const osThreadAttr_t IOTask_attributes = {
@@ -72,14 +75,8 @@ const osThreadAttr_t MotorTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for VisibleTask */
-osThreadId_t VisibleTaskHandle;
-const osThreadAttr_t VisibleTask_attributes = {
-  .name = "VisibleTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal2,
-};
 /* USER CODE BEGIN PV */
+// Modbus register arrays
 
 /* USER CODE END PV */
 
@@ -95,7 +92,6 @@ static void MX_ADC1_Init(void);
 void StartIOTask(void *argument);
 void StartUartTask(void *argument);
 void StartMotorTask(void *argument);
-void StartVisibleTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -114,7 +110,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -123,14 +118,12 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -143,6 +136,42 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
+  // Start PWM timers for motor control
+  // HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); // Motor 1 PWM
+  // HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  // Initialize global variables
+  g_totalReceived = 0;
+  g_corruptionCount = 0;
+  g_receivedIndex = 0;
+  
+  // Initialize Modbus registers
+  // for (int i = 0; i < HOLDING_REG_COUNT; i++) {
+  //   g_holdingRegisters[i] = 0;
+  // }
+  initializeModbusRegisters();
+  // Set some default values for important registers
+      // Initialize other arrays
+      for (int i = 0; i < INPUT_REG_COUNT; i++) {
+        g_inputRegisters[i] = 0;
+    }
+    
+    for (int i = 0; i < COIL_COUNT; i++) {
+        g_coils[i] = 0;
+    }
+    
+    for (int i = 0; i < DISCRETE_COUNT; i++) {
+        g_discreteInputs[i] = 0;
+    }
+
+  // Initialize UART buffer
+  memset(rxBuffer, 0, RX_BUFFER_SIZE);
+  rxIndex = 0;
+  frameReceived = 0;
+  g_lastUARTActivity = HAL_GetTick();
+  
+  // Start UART reception
+  HAL_UART_Receive_IT(&huart2, &rxBuffer[0], 1);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -173,9 +202,6 @@ int main(void)
 
   /* creation of MotorTask */
   MotorTaskHandle = osThreadNew(StartMotorTask, NULL, &MotorTask_attributes);
-
-  /* creation of VisibleTask */
-  VisibleTaskHandle = osThreadNew(StartVisibleTask, NULL, &VisibleTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -233,7 +259,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
@@ -570,10 +596,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, LED4_Pin|LED3_Pin|LED2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LED1_Pin|DIR_1_Pin|DIR_3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LED1_Pin|DIR_1_Pin|EN_1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, DIR_2_Pin|DIR_4_Pin|OUT2_Pin|OUT1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, DIR_2_Pin|EN_2_Pin|OUT2_Pin|OUT1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : LED4_Pin LED3_Pin LED2_Pin */
   GPIO_InitStruct.Pin = LED4_Pin|LED3_Pin|LED2_Pin;
@@ -582,8 +608,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LED1_Pin DIR_1_Pin DIR_3_Pin */
-  GPIO_InitStruct.Pin = LED1_Pin|DIR_1_Pin|DIR_3_Pin;
+  /*Configure GPIO pins : LED1_Pin DIR_1_Pin EN_1_Pin */
+  GPIO_InitStruct.Pin = LED1_Pin|DIR_1_Pin|EN_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -595,8 +621,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(IN1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DIR_2_Pin DIR_4_Pin OUT2_Pin OUT1_Pin */
-  GPIO_InitStruct.Pin = DIR_2_Pin|DIR_4_Pin|OUT2_Pin|OUT1_Pin;
+  /*Configure GPIO pins : DIR_2_Pin EN_2_Pin OUT2_Pin OUT1_Pin */
+  GPIO_InitStruct.Pin = DIR_2_Pin|EN_2_Pin|OUT2_Pin|OUT1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -615,6 +641,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartIOTask */
@@ -630,7 +657,7 @@ void StartIOTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+
   }
   /* USER CODE END 5 */
 }
@@ -648,7 +675,21 @@ void StartUartTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    // Update Modbus counter
+    g_modbusCounter++;
+    
+    // Check for UART timeout (10 seconds)
+    if (HAL_GetTick() - g_lastUARTActivity > 10000) {
+      resetUARTCommunication();
+      g_lastUARTActivity = HAL_GetTick();
+    }
+    
+    // Process Modbus frame if received
+    if (frameReceived) {
+      processModbusFrame();
+    }
+    
+    osDelay(100); // 100ms delay
   }
   /* USER CODE END StartUartTask */
 }
@@ -662,31 +703,31 @@ void StartUartTask(void *argument)
 /* USER CODE END Header_StartMotorTask */
 void StartMotorTask(void *argument)
 {
-  /* USER CODE BEGIN StartMotorTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartMotorTask */
-}
+  const uint16_t M1_BASE_ADDR = 0x0000;
+  const uint16_t M2_BASE_ADDR = 0x0010;
+  // Initialize PID controllers with default values
 
-/* USER CODE BEGIN Header_StartVisibleTask */
-/**
-* @brief Function implementing the VisibleTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartVisibleTask */
-void StartVisibleTask(void *argument)
-{
-  /* USER CODE BEGIN StartVisibleTask */
-  /* Infinite loop */
-  for(;;)
+
+  // Vòng lặp RTOS
+  for (;;)
   {
-    osDelay(1);
+      // 1. Load dữ liệu từ Modbus registers
+      MotorRegisters_Load(&motor1, M1_BASE_ADDR);
+      MotorRegisters_Load(&motor2, M2_BASE_ADDR);
+      updateBaudrate();
+      // 2. Xử lý logic điều khiển motor 1
+      Motor_ProcessControl(&motor1);
+
+      // 3. Xử lý logic điều khiển motor 2
+      Motor_ProcessControl(&motor2);
+
+      // 4. Save lại dữ liệu ngược ra Modbus registers
+      MotorRegisters_Save(&motor1, M1_BASE_ADDR);
+      MotorRegisters_Save(&motor2, M2_BASE_ADDR);
+
+      // 5. Delay theo chu kỳ task (ví dụ 10ms)
+      osDelay(10);
   }
-  /* USER CODE END StartVisibleTask */
 }
 
 /**

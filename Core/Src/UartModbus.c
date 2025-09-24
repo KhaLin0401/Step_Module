@@ -12,6 +12,7 @@ uint16_t g_inputRegisters[INPUT_REG_COUNT];
 uint8_t g_coils[COIL_COUNT];
 uint8_t g_discreteInputs[DISCRETE_COUNT];
 
+
 // Task counters
 uint32_t g_taskCounter = 0;
 uint32_t g_modbusCounter = 0;
@@ -31,7 +32,7 @@ uint8_t g_receivedIndex = 0;
 void initializeModbusRegisters(void) {
     // Initialize all registers to default values
     
-    // System Registers (0x00F0-0x00F6)
+
     g_holdingRegisters[REG_DEVICE_ID] = DEFAULT_DEVICE_ID;  
     g_holdingRegisters[REG_CONFIG_BAUDRATE] = DEFAULT_CONFIG_BAUDRATE;
     g_holdingRegisters[REG_CONFIG_PARITY] = DEFAULT_CONFIG_PARITY;
@@ -49,9 +50,9 @@ void initializeModbusRegisters(void) {
     g_holdingRegisters[REG_M1_COMMAND_SPEED] = DEFAULT_COMMAND_SPEED;
     g_holdingRegisters[REG_M1_ACTUAL_SPEED] = DEFAULT_ACTUAL_SPEED;
     g_holdingRegisters[REG_M1_DIRECTION] = DEFAULT_DIRECTION;
-    g_holdingRegisters[REG_M1_PID_KP] = DEFAULT_PID_KP;
-    g_holdingRegisters[REG_M1_PID_KI] = DEFAULT_PID_KI;
-    g_holdingRegisters[REG_M1_PID_KD] = DEFAULT_PID_KD;
+    g_holdingRegisters[REG_M1_VMAX] = DEFAULT_VMAX;
+    g_holdingRegisters[REG_M1_AMAX] = DEFAULT_AMAX;
+    g_holdingRegisters[REG_M1_JMAX] = DEFAULT_JMAX;
     g_holdingRegisters[REG_M1_STATUS_WORD] = DEFAULT_STATUS_WORD;
     g_holdingRegisters[REG_M1_ERROR_CODE] = DEFAULT_ERROR_CODE;
     g_holdingRegisters[REG_M1_MAX_SPEED] = DEFAULT_MAX_SPEED;
@@ -65,9 +66,9 @@ void initializeModbusRegisters(void) {
     g_holdingRegisters[REG_M2_COMMAND_SPEED] = DEFAULT_COMMAND_SPEED;
     g_holdingRegisters[REG_M2_ACTUAL_SPEED] = DEFAULT_ACTUAL_SPEED;
     g_holdingRegisters[REG_M2_DIRECTION] = DEFAULT_DIRECTION;
-    g_holdingRegisters[REG_M2_PID_KP] = DEFAULT_PID_KP;
-    g_holdingRegisters[REG_M2_PID_KI] = DEFAULT_PID_KI;
-    g_holdingRegisters[REG_M2_PID_KD] = DEFAULT_PID_KD;
+    g_holdingRegisters[REG_M2_VMAX] = DEFAULT_VMAX;
+    g_holdingRegisters[REG_M2_AMAX] = DEFAULT_AMAX;
+    g_holdingRegisters[REG_M2_JMAX] = DEFAULT_JMAX;
     g_holdingRegisters[REG_M2_STATUS_WORD] = DEFAULT_STATUS_WORD;
     g_holdingRegisters[REG_M2_ERROR_CODE] = DEFAULT_ERROR_CODE;
     g_holdingRegisters[REG_M2_MAX_SPEED] = DEFAULT_MAX_SPEED;

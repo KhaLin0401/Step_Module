@@ -24,9 +24,9 @@
 #define REG_M1_DIRECTION           0x0004
 #define REG_M1_MAX_SPEED           0x0005
 #define REG_M1_MIN_SPEED           0x0006
-#define REG_M1_PID_KP              0x0007
-#define REG_M1_PID_KI              0x0008
-#define REG_M1_PID_KD              0x0009
+#define REG_M1_VMAX               0x0007
+#define REG_M1_AMAX              0x0008
+#define REG_M1_JMAX              0x0009
 #define REG_M1_MAX_ACCELERATION    0x000A
 #define REG_M1_MAX_DECELERATION    0x000B
 #define REG_M1_STATUS_WORD         0x000C
@@ -40,9 +40,9 @@
 #define REG_M2_DIRECTION           0x0014
 #define REG_M2_MAX_SPEED           0x0015
 #define REG_M2_MIN_SPEED           0x0016
-#define REG_M2_PID_KP              0x0017
-#define REG_M2_PID_KI              0x0018
-#define REG_M2_PID_KD              0x0019
+#define REG_M2_VMAX              0x0017
+#define REG_M2_AMAX              0x0018
+#define REG_M2_JMAX              0x0019
 #define REG_M2_MAX_ACCELERATION    0x001A
 #define REG_M2_MAX_DECELERATION    0x001B
 #define REG_M2_STATUS_WORD         0x001C
@@ -67,11 +67,11 @@
 #define TOTAL_HOLDING_REG_COUNT    0x0045  // Total number of registers
 
 // Default Values for System Registers
-#define DEFAULT_DEVICE_ID          3
+#define DEFAULT_DEVICE_ID          5
 #define DEFAULT_CONFIG_BAUDRATE    5
 #define DEFAULT_CONFIG_PARITY      0
 #define DEFAULT_CONFIG_STOP_BIT    1
-#define DEFAULT_MODULE_TYPE        4
+#define DEFAULT_MODULE_TYPE        7
 #define DEFAULT_FIRMWARE_VERSION   0x0001
 #define DEFAULT_HARDWARE_VERSION   0x0001
 #define DEFAULT_SYSTEM_STATUS      0x0000
@@ -87,9 +87,9 @@
 #define DEFAULT_DIRECTION          0       // Idle
 #define DEFAULT_MAX_SPEED          100
 #define DEFAULT_MIN_SPEED          0
-#define DEFAULT_PID_KP             100      // ×100
-#define DEFAULT_PID_KI             10       // ×100
-#define DEFAULT_PID_KD             5        // ×100
+#define DEFAULT_VMAX               2      
+#define DEFAULT_AMAX               5       
+#define DEFAULT_JMAX               2        
 #define DEFAULT_MAX_ACCELERATION   5
 #define DEFAULT_MAX_DECELERATION   4
 #define DEFAULT_STATUS_WORD        0x0000
@@ -98,7 +98,7 @@
 
 // Control Mode Values
 #define CONTROL_MODE_ONOFF        1
-#define CONTROL_MODE_PID          2
+#define CONTROL_MODE_RAMP         2
 
 // Direction Values
 #define DIRECTION_IDLE            0
@@ -118,4 +118,6 @@
 #define DIO_ASSIGN_EMERGENCY_STOP 9
 #define DIO_ASSIGN_JOG_MODE       10
 
+
+#define DEFAULT_VMIN              200
 #endif // 
